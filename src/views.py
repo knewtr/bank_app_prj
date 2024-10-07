@@ -24,7 +24,6 @@ def main_page(date: str) -> str:
     date = datetime.datetime.strptime(date, "%d.%m.%Y %H:%M:%S").strftime("%Y-%m-%d")
     with open(PATH) as f:
         data = json.load(f)
-
     logger.info("Старт")
     currency_list = data["user_currencies"]
     stocks = data["user_stocks"]
