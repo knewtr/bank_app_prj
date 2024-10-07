@@ -5,7 +5,7 @@ import os
 
 from src.utils import (get_card_data, get_currency_rates, get_stock_rates,
                        get_time_greeting, get_top_transactions,
-                       get_xlsx_data_dict)
+                       get_xlsx_data)
 
 logger = logging.getLogger("main_page.log")
 file_handler = logging.FileHandler("main_page.log", "w")
@@ -29,7 +29,7 @@ def main_page(date: str) -> str:
     currency_list = data["user_currencies"]
     stocks = data["user_stocks"]
     logger.info("Конвертируем xlsx-файл в список словарей")
-    transactions = get_xlsx_data_dict("../data/operations.xlsx")
+    transactions = get_xlsx_data("../data/operations.xlsx")
     logger.info("Формируем приветствие")
     greeting = get_time_greeting()
     logger.info("Формируем данные о карте")
