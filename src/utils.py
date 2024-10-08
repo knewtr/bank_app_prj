@@ -1,47 +1,46 @@
-from datetime import datetime
+import datetime
+from collections import Counter
 
 import pandas as pd
 import requests
 from pandas import DataFrame
 
 
-def get_xlsx_data(file_name: str) -> DataFrame | list:
-    """Считывает данные о транзакциях из xlsx-файла и возвращает список словарей"""
-    try:
-        xlsx_data_file = pd.read_excel(file_name)
-        data_list = xlsx_data_file.apply(
-            lambda row: {
-                "operation_date": row["Дата операции"],
-                "payment_date": row["Дата платежа"],
-                "card_number": row["Номер карты"],
-                "status": row["Статус"],
-                "operation_sum": row["Сумма операции"],
-                "operation_cur": row["Валюта операции"],
-                "payment_sum": row["Сумма платежа"],
-                "payment_cur": row["Валюта платежа"],
-                "cashback": row["Кэшбэк"],
-                "category": row["Категория"],
-                "MCC": row["MCC"],
-                "description": row["Описание"],
-                "bonus": row["Бонусы (включая кэшбэк)"],
-                "invest_bank": row["Округление на инвесткопилку"],
-                "rounded_sum": row["Сумма операции с округлением"],
-            },
-            axis=1,
+def get_xlsx_data(excel_path: str) -> DataFrame:
+    """Функция выводит данные из xlsx-файла"""
+    if excel_path == "":
+        excel_data = pd.DataFrame(
+            {
+                "Дата операции": [],
+                "Дата платежа": [],
+                "Номер карты": [],
+                "Статус": [],
+                "Сумма операции": [],
+                "Валюта операции": [],
+                "Сумма платежа": [],
+                "Валюта платежа": [],
+                "Кэшбэк": [],
+                "Категория": [],
+                "МСС": [],
+                "Описание": [],
+                "Бонусы (включая кэшбэк)": [],
+                "Округление на инвесткопилку": [],
+                "Сумма операции с округлением": [],
+            }
         )
-        new_dict_list = []
-        row_index = 0
-        for row in data_list:
-            new_dict_list.append(data_list[row_index])
-            row_index += 1
-        return new_dict_list
-    except FileNotFoundError:
-        return "Файл не найден"
+        return excel_data
+    try:
+        excel_data = pd.read_excel(excel_path)
+        excel_data_no_nan = excel_data.loc[excel_data["Номер карты"].notnull()]
+    except Exception as e:
+        excel_data = pd.DataFrame()
+        return excel_data
+    return excel_data_no_nan
 
 
-def get_time_greeting(date: str) -> str:
+def get_time_greeting(date_str: str) -> str:
     """Функция выводит приветствие в соответствии с текущим временем"""
-    current_time = datetime.strptime(date, "%d.%m.%Y %H:%M:%S")
+    current_time = datetime.datetime.strptime(date_str, "%d.%m.%Y %H:%M:%S")
     if current_time.hour < 6:
         greeting = "Доброй ночи"
     elif 6 <= current_time.hour < 12:
@@ -51,19 +50,6 @@ def get_time_greeting(date: str) -> str:
     else:
         greeting = "Добрый вечер"
     return greeting
-
-
-def get_card_list(transactions: list[dict]) -> list:
-    """Функция выводит список номеров карт из списка транзакций"""
-    card_list = []
-    for transaction in transactions:
-        if transaction["card_number"]:
-            card_list.append(transaction["card_number"])
-    card_list_short = []
-    for card in card_list:
-        if card not in card_list_short and type(card) is str:
-            card_list_short.append(card)
-    return card_list_short
 
 
 def get_total_sum(date_period: str, transactions: list[dict], card_number: str) -> float:
@@ -84,19 +70,16 @@ def get_cashback(total_sum):
     return cashback
 
 
-def get_card_data(date: str, transactions: list[dict]) -> list[dict]:
+def get_card_data(df_data: DataFrame) -> list[dict]:
     """Функция выводит 4 последние цифры карты, общую сумму расходов, сумму кэшбэка"""
-    card_list = get_card_list(transactions)
-    new_card_list = []
-    for card in card_list:
-        total_spent = get_total_sum(date, transactions, card)
-        new_card_dict = {
-            "last_digits": card[1:],
-            "total_spent": get_total_sum(date, transactions, card),
-            "cashback": get_cashback(total_spent),
-        }
-        new_card_list.append(new_card_dict)
-    return new_card_list
+    cards_list = list(Counter(df_data.loc[:, "Номер карты"]))
+    cards_data = []
+    for card in cards_list:
+        j_df_data = df_data.loc[df_data.loc[:, "Номер карты"] == card]
+        total_spent = abs(sum(j for j in j_df_data.loc[:, "Сумма операции"] if j < 0))
+        cashback = round(total_spent / 100, 2)
+        cards_data.append({"last digits": card, "total_spent": total_spent, "cashback": cashback})
+    return cards_data
 
 
 def get_top_transactions(df_data: DataFrame, tr_number=5) -> list[dict]:
@@ -114,6 +97,15 @@ def get_top_transactions(df_data: DataFrame, tr_number=5) -> list[dict]:
             {"date": date, "amount": amount, "category": category, "description": description}
         )
     return top_transactions_list
+
+
+def filter_by_date(current_date: str, df: DataFrame) -> DataFrame:
+    """Функция выводит транзакции с начала месяца и до текущей даты"""
+    end_date = datetime.datetime.strptime(current_date, "%d.%m.%Y %H:%M:%S")
+    start_date = datetime.datetime.strptime(f"01.{end_date.month}.{end_date.year} 00:00:00", "%d.%m.%Y %H:%M:%S")
+    df["Дата"] = df["Дата операции"].map(lambda x: datetime.datetime.strptime(str(x), "%d.%m.%Y %H:%M:%S"))
+    filtered_df = df[(df["Дата"] >= start_date) & (df["Дата"] <= end_date)]
+    return filtered_df.iloc[:, :-1]
 
 
 def get_currency_rates(currency_list: list) -> list[dict]:

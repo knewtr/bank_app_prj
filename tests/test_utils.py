@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.utils import (get_card_data, get_card_list, get_currency_rates,
+from src.utils import (get_card_data, get_currency_rates,
                        get_stock_rates, get_time_greeting,
                        get_top_transactions, get_total_sum)
 
@@ -20,20 +20,13 @@ def test_get_time_greeting(input_data, expected):
     assert get_time_greeting(input_data) == expected
 
 
-def test_get_card_list(transactions):
-    assert get_card_list(transactions) == ["*7197", "*4556"]
-
-
 def test_get_total_sum(transactions):
     assert get_total_sum("2019-09-30", transactions, "*7197") == 678.77
     assert get_total_sum("2019-09-30", transactions, "*4556") == 0
 
 
-def test_get_card_data(transactions):
-    assert get_card_data("2019-09-30", transactions) == [
-        {"last_digits": "7197", "total_spent": 678.77, "cashback": 6.79},
-        {"last_digits": "4556", "total_spent": 0, "cashback": 0.0},
-    ]
+def test_get_card_data(test_transactions):
+    assert get_card_data(test_transactions) == [{"last digits": "*7197", "total_spent": 224.89, "cashback": 2.25}]
 
 
 def test_get_top_transactions(top_5):
